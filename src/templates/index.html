@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Aggregator</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .news-item:hover {
+      cursor: pointer;
+    }
+    .loading {
+      display: flex;
+      align-items: center;
+    }
+    .loading img {
+      width: 20px;
+      margin-right: 10px;
+    }
+    .scrollable {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    h5 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <h1 class="mb-4">🗞️ News Aggregator</h1>
+    <p class="mb-4">
+      This tool fetches the latest news articles from various categories like World, Finance, Tech, Health, and Entertainment from trusted sources such as CNN. When you select a category and click on an article, the tool will provide you with a concise summary of the article's content. You can also view the original article if you wish to read more. All images are provided by the news sources.
+    </p>
+    <div class="mb-4">
+      <label for="categorySelect" class="form-label">Select News Category:</label>
+      <select id="categorySelect" class="form-control">
+        <option value="world">World</option>
+        <option value="finance">Finance</option>
+        <option value="tech">Tech</option>
+        <option value="health">Health</option>
+        <option value="entertainment">Entertainment</option>
+      </select>
+    </div>
+    <div class="row">
+      <div class="col-md-4">
+        <h3>News Articles</h3>
+        <div id="articles" class="list-group scrollable"></div>
+      </div>
+      <div class="col-md-8">
+        <h3>Article Summary</h3>
+        <div id="articleContent" class="border p-3">Select an article to see the summary.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const categorySelect = document.getElementById('categorySelect');
+      const articlesContainer = document.getElementById('articles');
+      const articleContent = document.getElementById('articleContent');
+
+      function fetchNews(category) {
+        fetch(`/api/news?category=${category}`)
+          .then(response => response.json())
+          .then(data => {
+            articlesContainer.innerHTML = '';
+            if (data.news.length > 0) {
+              data.news.forEach(article => {
+                const articleItem = document.createElement('a');
+                articleItem.classList.add('list-group-item', 'list-group-item-action', 'news-item');
+                articleItem.innerHTML = `<h5>${article.title}</h5>`;
+                articleItem.addEventListener('click', () => {
+                  articleContent.innerHTML = `
+                    <div class="loading">
+                      <img src="loading-spinner.gif" alt="Loading">
+                      <p>Generating summary...</p>
+                    </div>
+                  `;
+                  fetch(`/api/analyze?url=${encodeURIComponent(article.link)}`)
+                    .then(response => response.json())
+                    .then(summaryData => {
+                      if (summaryData.summary) {
+                        articleContent.innerHTML = `
+                          ${summaryData.image_url ? `<img src="${summaryData.image_url}" class="img-fluid mb-3" alt="Article Image">` : ''}
+                          <p>${summaryData.summary}</p>
+                          <a href="${article.link}" target="_blank">Read the full article</a>
+                        `;
+                      } else {
+                        articleContent.innerHTML = `
+                          <p>Sorry, we couldn't generate a summary at this time. Read the full article below:</p>
+                          <a href="${article.link}" target="_blank">${article.link}</a>
+                        `;
+                      }
+                    });
+                });
+                articlesContainer.appendChild(articleItem);
+              });
+            } else {
+              articlesContainer.innerHTML = '<p>No news available</p>';
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching news:', error);
+            articlesContainer.innerHTML = '<p>Failed to fetch news.</p>';
+          });
+      }
+
+      categorySelect.addEventListener('change', function() {
+        fetchNews(this.value);
+      });
+
+      fetchNews(categorySelect.value);
+    });
+  </script>
+</body>
+</html>
